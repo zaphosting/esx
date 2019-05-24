@@ -5,8 +5,8 @@
 			'<div class="head"><span>{{title}}</span></div>' +
 				'{{#isDefault}}<input type="text" name="value" id="inputText"/>{{/isDefault}}' +
 				'{{#isBig}}<textarea name="value"/>{{/isBig}}' +
-				'<button type="button" name="submit">Submit</button>' +
-				'<button type="button" name="cancel">Cancel</button>' + 
+				'<button type="button" name="submit">Envoyer</button>' +
+				'<button type="button" name="cancel">Annuler</button>' + 
 			'</div>' +
 		'</div>'
 	;

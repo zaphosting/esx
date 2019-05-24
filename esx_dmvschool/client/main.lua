@@ -116,27 +116,41 @@ function OpenDMVSchoolMenu()
 	local elements = {}
 
 	if not ownedLicenses['dmv'] then
-		table.insert(elements, {label = _U('theory_test') .. ' <span style="color: green;">$' .. Config.Prices['dmv'] .. '</span>', value = 'theory_test'})
+		table.insert(elements, {
+			label = (('%s: <span style="color:green;">%s</span>'):format(_U('theory_test'), _U('school_item', ESX.Math.GroupDigits(Config.Prices['dmv'])))),
+			value = 'theory_test'
+		})
 	end
 
 	if ownedLicenses['dmv'] then
 		if not ownedLicenses['drive'] then
-			table.insert(elements, {label = _U('road_test_car') .. ' <span style="color: green;">$' .. Config.Prices['drive'] .. '</span>', value = 'drive_test', type = 'drive'})
+			table.insert(elements, {
+				label = (('%s: <span style="color:green;">%s</span>'):format(_U('road_test_car'), _U('school_item', ESX.Math.GroupDigits(Config.Prices['drive'])))),
+				value = 'drive_test',
+				type = 'drive'
+			})
 		end
 
 		if not ownedLicenses['drive_bike'] then
-			table.insert(elements, {label = _U('road_test_bike') .. ' <span style="color: green;">$' .. Config.Prices['drive_bike'] .. '</span>', value = 'drive_test', type = 'drive_bike'})
+			table.insert(elements, {
+				label = (('%s: <span style="color:green;">%s</span>'):format(_U('road_test_bike'), _U('school_item', ESX.Math.GroupDigits(Config.Prices['drive_bike'])))),
+				value = 'drive_test',
+				type = 'drive_bike'
+			})
 		end
 
 		if not ownedLicenses['drive_truck'] then
-			table.insert(elements, {label = _U('road_test_truck') .. ' <span style="color: green;">$' .. Config.Prices['drive_truck'] .. '</span>', value = 'drive_test', type = 'drive_truck'})
+			table.insert(elements, {
+				label = (('%s: <span style="color:green;">%s</span>'):format(_U('drive_truck'), _U('school_item', ESX.Math.GroupDigits(Config.Prices['drive_truck'])))),
+				value = 'drive_test',
+				type = 'drive_truck'
+			})
 		end
 	end
 
 	ESX.UI.Menu.CloseAll()
 
-	ESX.UI.Menu.Open('default', GetCurrentResourceName(), 'dmvschool_actions',
-	{
+	ESX.UI.Menu.Open('default', GetCurrentResourceName(), 'dmvschool_actions', {
 		title    = _U('driving_school'),
 		elements = elements,
 		align    = 'top-left'
@@ -161,17 +175,17 @@ RegisterNUICallback('question', function(data, cb)
 		openSection = 'question'
 	})
 
-	cb('OK')
+	cb()
 end)
 
 RegisterNUICallback('close', function(data, cb)
 	StopTheoryTest(true)
-	cb('OK')
+	cb()
 end)
 
 RegisterNUICallback('kick', function(data, cb)
 	StopTheoryTest(false)
-	cb('OK')
+	cb()
 end)
 
 AddEventHandler('esx_dmvschool:hasEnteredMarker', function(zone)
@@ -209,7 +223,6 @@ end)
 -- Display markers
 Citizen.CreateThread(function()
 	while true do
-
 		Citizen.Wait(0)
 
 		local coords = GetEntityCoords(PlayerPedId())
@@ -219,7 +232,6 @@ Citizen.CreateThread(function()
 				DrawMarker(v.Type, v.Pos.x, v.Pos.y, v.Pos.z, 0.0, 0.0, 0.0, 0, 0.0, 0.0, v.Size.x, v.Size.y, v.Size.z, v.Color.r, v.Color.g, v.Color.b, 100, false, true, 2, false, false, false, false)
 			end
 		end
-
 	end
 end)
 
@@ -277,8 +289,7 @@ Citizen.CreateThread(function()
 	while true do
 		Citizen.Wait(0)
 
-		if CurrentAction ~= nil then
-
+		if CurrentAction then
 			ESX.ShowHelpNotification(CurrentActionMsg)
 
 			if IsControlJustReleased(0, Keys['E']) then

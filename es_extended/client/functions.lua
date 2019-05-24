@@ -410,11 +410,7 @@ ESX.Game.IsVehicleEmpty = function(vehicle)
 	local passengers = GetVehicleNumberOfPassengers(vehicle)
 	local driverSeatFree = IsVehicleSeatFree(vehicle, -1)
 
-	if not driverSeatFree then
-		passengers = passengers + 1
-	end
-
-	return passengers == 0
+	return passengers == 0 and driverSeatFree
 end
 
 ESX.Game.GetObjects = function()
@@ -1014,7 +1010,6 @@ ESX.Game.Utils.DrawText3D = function(coords, text, size)
 	if onScreen then
 		SetTextScale(0.0 * scale, 0.55 * scale)
 		SetTextFont(0)
-		SetTextProportional(1)
 		SetTextColour(255, 255, 255, 255)
 		SetTextDropshadow(0, 0, 0, 0, 255)
 		SetTextEdge(2, 0, 0, 0, 150)
@@ -1142,7 +1137,7 @@ ESX.ShowInventory = function()
 				local players      = ESX.Game.GetPlayersInArea(GetEntityCoords(playerPed), 3.0)
 				local foundPlayers = false
 				local elements     = {}
-			
+
 				for i=1, #players, 1 do
 					if players[i] ~= PlayerId() then
 						foundPlayers = true
@@ -1172,7 +1167,7 @@ ESX.ShowInventory = function()
 
 					for i=1, #players, 1 do
 						if players[i] ~= PlayerId() then
-							
+
 							if players[i] == data2.current.player then
 								foundPlayers = true
 								nearbyPlayer = players[i]
@@ -1351,20 +1346,16 @@ end)
 -- SetTimeout
 Citizen.CreateThread(function()
 	while true do
-
 		Citizen.Wait(0)
 		local currTime = GetGameTimer()
 
 		for i=1, #ESX.TimeoutCallbacks, 1 do
-
-			if ESX.TimeoutCallbacks[i] ~= nil then
+			if ESX.TimeoutCallbacks[i] then
 				if currTime >= ESX.TimeoutCallbacks[i].time then
 					ESX.TimeoutCallbacks[i].cb()
 					ESX.TimeoutCallbacks[i] = nil
 				end
 			end
-
 		end
-
 	end
 end)

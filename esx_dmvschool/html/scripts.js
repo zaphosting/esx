@@ -9,19 +9,19 @@ var nbPossibleQuestions = 10; // number of questions in database questions.js
 var lastClick = 0;
 
 function getRandomQuestion() {
-	var random = Math.floor(Math.random() * nbPossibleQuestions)
+	var random = Math.floor(Math.random() * nbPossibleQuestions);
 
 	while (true) {
 		if (questionUsed.indexOf(random) === -1) {
-			break
+			break;
 		}
 
-		random = Math.floor(Math.random() * nbPossibleQuestions)
+		random = Math.floor(Math.random() * nbPossibleQuestions);
 	}
 
-	questionUsed.push(random)
+	questionUsed.push(random);
 
-	return random
+	return random;
 }
 
 // Partial Functions
@@ -91,10 +91,18 @@ $(".btnQuestion").click(function () {
 
 $(".btnClose").click(function () {
 	$.post('http://esx_dmvschool/close', JSON.stringify({}));
+	userAnswer = [];
+	goodAnswer = [];
+	questionUsed = [];
+	questionNumber = 1;
 });
 
 $(".btnKick").click(function () {
 	$.post('http://esx_dmvschool/kick', JSON.stringify({}));
+	userAnswer = [];
+	goodAnswer = [];
+	questionUsed = [];
+	questionNumber = 1;
 });
 
 // Handle Form Submits

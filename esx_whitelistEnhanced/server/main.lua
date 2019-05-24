@@ -15,20 +15,19 @@ MySQL.ready(function()
 end)
 
 function loadWhiteList()
-	MySQL.Async.fetchAll('SELECT * FROM whitelist', {},
-		function (result)
-			WhiteList = {}
-			for i=1, #result, 1 do
-				table.insert(WhiteList, {
-					identifier		= result[i].identifier,
-					last_connection	= result[i].last_connection,
-					ban_reason		= result[i].ban_reason,
-					ban_until		= result[i].ban_until,
-					vip				= result[i].vip == 1
-				})
-			end
+	MySQL.Async.fetchAll('SELECT * FROM whitelist', {}, function(result)
+		WhiteList = {}
+
+		for i=1, #result, 1 do
+			table.insert(WhiteList, {
+				identifier = result[i].identifier,
+				last_connection = result[i].last_connection,
+				ban_reason = result[i].ban_reason,
+				ban_until = result[i].ban_until,
+				vip = result[i].vip == 1
+			})
 		end
-	)
+	end)
 end
 
 AddEventHandler('playerDropped', function(reason)
