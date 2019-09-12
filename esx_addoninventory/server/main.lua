@@ -1,9 +1,6 @@
-ESX                     = nil
-Items                   = {}
-local InventoriesIndex  = {}
-local Inventories       = {}
-local SharedInventories = {}
-
+Items = {}
+local InventoriesIndex, Inventories, SharedInventories = {}, {}, {}
+ESX = nil
 
 TriggerEvent('esx:getSharedObject', function(obj) ESX = obj end)
 
@@ -54,7 +51,6 @@ MySQL.ready(function()
 			end
 
 		else
-
 			local items = {}
 
 			for j=1, #result2, 1 do
@@ -67,7 +63,6 @@ MySQL.ready(function()
 
 			local addonInventory    = CreateAddonInventory(name, nil, items)
 			SharedInventories[name] = addonInventory
-
 		end
 	end
 end)
@@ -92,15 +87,13 @@ AddEventHandler('esx_addoninventory:getSharedInventory', function(name, cb)
 	cb(GetSharedInventory(name))
 end)
 
-AddEventHandler('esx:playerLoaded', function(source)
-	local _source = source
-	local xPlayer = ESX.GetPlayerFromId(_source)
+AddEventHandler('esx:playerLoaded', function(playerId, xPlayer)
 	local addonInventories = {}
 
 	for i=1, #InventoriesIndex, 1 do
 		local name      = InventoriesIndex[i]
 		local inventory = GetInventory(name, xPlayer.identifier)
-		
+
 		if inventory == nil then
 			inventory = CreateAddonInventory(name, xPlayer.identifier, {})
 			table.insert(Inventories[name], inventory)

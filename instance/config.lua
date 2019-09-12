@@ -1,3 +1,3 @@
-Config            = {}
-Config.Locale = 'en'
-Config.MaxPlayers = 32
+Config = {}
+
+Config.Locale = 'fr'

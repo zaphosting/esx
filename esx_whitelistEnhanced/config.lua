@@ -1,6 +1,6 @@
 Config = {}
 
-Config.Locale = 'en'
+Config.Locale = 'fr'
 
 Config.EnableAntiSpam = true
 Config.WaitingTime = 20
