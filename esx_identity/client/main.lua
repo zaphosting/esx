@@ -117,6 +117,7 @@ Citizen.CreateThread(function()
 			DisableControlAction(0, 143, true) -- disable melee
 			DisableControlAction(0, 75,  true) -- disable exit vehicle
 			DisableControlAction(27, 75, true) -- disable exit vehicle
+			DisableControlAction(0, 245, true) -- disable chat 
 		end
 		Citizen.Wait(10)
 	end
