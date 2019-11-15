@@ -119,7 +119,7 @@ Citizen.CreateThread(function()
 			DisableControlAction(27, 75, true) -- disable exit vehicle
 			DisableControlAction(0, 245, true) -- disable chat 
 		end
-		Citizen.Wait(10)
+		Citizen.Wait(1)
 	end
 end)
 
