@@ -30,7 +30,8 @@ client_scripts {
 	'locales/es.lua',
 	'locales/sv.lua',
 	'config.lua',
-	'client/main.lua'
+	'client/main.lua',
+	'client/vehicle.lua'
 }
 
 dependencies {

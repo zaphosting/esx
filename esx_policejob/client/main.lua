@@ -1,7 +1,7 @@
-local PlayerData, CurrentActionData, handcuffTimer, dragStatus, blipsCops, currentTask, spawnedVehicles = {}, {}, {}, {}, {}, {}, {}
-local HasAlreadyEnteredMarker, isDead, isHandcuffed, hasAlreadyJoined, playerInService, isInShopMenu = false, false, false, false, false, false
+local CurrentActionData, handcuffTimer, dragStatus, blipsCops, currentTask = {}, {}, {}, {}, {}
+local HasAlreadyEnteredMarker, isDead, isHandcuffed, hasAlreadyJoined, playerInService = false, false, false, false, false
 local LastStation, LastPart, LastPartNum, LastEntity, CurrentAction, CurrentActionMsg
-dragStatus.isDragged = false
+dragStatus.isDragged, isInShopMenu = false, false
 ESX = nil
 
 Citizen.CreateThread(function()
@@ -14,7 +14,7 @@ Citizen.CreateThread(function()
 		Citizen.Wait(10)
 	end
 
-	PlayerData = ESX.GetPlayerData()
+	ESX.PlayerData = ESX.GetPlayerData()
 end)
 
 function cleanPlayer(playerPed)
@@ -25,62 +25,47 @@ function cleanPlayer(playerPed)
 	ResetPedMovementClipset(playerPed, 0)
 end
 
-function setUniform(job, playerPed)
+function setUniform(uniform, playerPed)
 	TriggerEvent('skinchanger:getSkin', function(skin)
-		if skin.sex == 0 then
-			if Config.Uniforms[job].male then
-				TriggerEvent('skinchanger:loadClothes', skin, Config.Uniforms[job].male)
-			else
-				ESX.ShowNotification(_U('no_outfit'))
-			end
+		local uniformObject
 
-			if job == 'bullet_wear' then
+		if skin.sex == 0 then
+			uniformObject = Config.Uniforms[uniform].male
+		else
+			uniformObject = Config.Uniforms[uniform].female
+		end
+
+		if uniformObject then
+			TriggerEvent('skinchanger:loadClothes', skin, uniformObject)
+
+			if uniform == 'bullet_wear' then
 				SetPedArmour(playerPed, 100)
 			end
 		else
-			if Config.Uniforms[job].female then
-				TriggerEvent('skinchanger:loadClothes', skin, Config.Uniforms[job].female)
-			else
-				ESX.ShowNotification(_U('no_outfit'))
-			end
-
-			if job == 'bullet_wear' then
-				SetPedArmour(playerPed, 100)
-			end
+			ESX.ShowNotification(_U('no_outfit'))
 		end
 	end)
 end
 
 function OpenCloakroomMenu()
 	local playerPed = PlayerPedId()
-	local grade = PlayerData.job.grade_name
+	local grade = ESX.PlayerData.job.grade_name
 
 	local elements = {
-		{ label = _U('citizen_wear'), value = 'citizen_wear' },
-		{ label = _U('bullet_wear'), value = 'bullet_wear' },
-		{ label = _U('gilet_wear'), value = 'gilet_wear' }
+		{label = _U('citizen_wear'), value = 'citizen_wear'},
+		{label = _U('bullet_wear'), uniform = 'bullet_wear'},
+		{label = _U('gilet_wear'), uniform = 'gilet_wear'},
+		{label = _U('police_wear'), uniform = grade}
 	}
 
-	if grade == 'recruit' then
-		table.insert(elements, {label = _U('police_wear'), value = 'recruit_wear'})
-	elseif grade == 'officer' then
-		table.insert(elements, {label = _U('police_wear'), value = 'officer_wear'})
-	elseif grade == 'sergeant' then
-		table.insert(elements, {label = _U('police_wear'), value = 'sergeant_wear'})
-	elseif grade == 'intendent' then
-		table.insert(elements, {label = _U('police_wear'), value = 'intendent_wear'})
-	elseif grade == 'lieutenant' then
-		table.insert(elements, {label = _U('police_wear'), value = 'lieutenant_wear'})
-	elseif grade == 'chef' then
-		table.insert(elements, {label = _U('police_wear'), value = 'chef_wear'})
-	elseif grade == 'boss' then
-		table.insert(elements, {label = _U('police_wear'), value = 'boss_wear'})
-	end
+	if Config.EnableCustomPeds then
+		for k,v in ipairs(Config.CustomPeds.shared) do
+			table.insert(elements, {label = v.label, value = 'freemode_ped', maleModel = v.maleModel, femaleModel = v.femaleModel})
+		end
 
-	if Config.EnableNonFreemodePeds then
-		table.insert(elements, {label = 'Sheriff wear', value = 'freemode_ped', maleModel = 's_m_y_sheriff_01', femaleModel = 's_f_y_sheriff_01'})
-		table.insert(elements, {label = 'Police wear', value = 'freemode_ped', maleModel = 's_m_y_cop_01', femaleModel = 's_f_y_cop_01'})
-		table.insert(elements, {label = 'Swat wear', value = 'freemode_ped', maleModel = 's_m_y_swat_01', femaleModel = 's_m_y_swat_01'})
+		for k,v in ipairs(Config.CustomPeds[grade]) do
+			table.insert(elements, {label = v.label, value = 'freemode_ped', maleModel = v.maleModel, femaleModel = v.femaleModel})
+		end
 	end
 
 	ESX.UI.Menu.CloseAll()
@@ -111,7 +96,7 @@ function OpenCloakroomMenu()
 				end)
 			end
 
-			if Config.MaxInService ~= -1 then
+			if Config.EnableESXService then
 				ESX.TriggerServerCallback('esx_service:isInService', function(isInService)
 					if isInService then
 						playerInService = false
@@ -133,8 +118,8 @@ function OpenCloakroomMenu()
 			end
 		end
 
-		if Config.MaxInService ~= -1 and data.current.value ~= 'citizen_wear' then
-			local serviceOk = 'waiting'
+		if Config.EnableESXService and data.current.value ~= 'citizen_wear' then
+			local awaitService
 
 			ESX.TriggerServerCallback('esx_service:isInService', function(isInService)
 				if not isInService then
@@ -143,7 +128,7 @@ function OpenCloakroomMenu()
 						if not canTakeService then
 							ESX.ShowNotification(_U('service_max', inServiceCount, maxInService))
 						else
-							serviceOk = true
+							awaitService = true
 							playerInService = true
 
 							local notification = {
@@ -160,36 +145,24 @@ function OpenCloakroomMenu()
 					end, 'police')
 
 				else
-					serviceOk = true
+					awaitService = true
 				end
 			end, 'police')
 
-			while type(serviceOk) == 'string' do
+			while awaitService == nil do
 				Citizen.Wait(5)
 			end
 
 			-- if we couldn't enter service don't let the player get changed
-			if not serviceOk then
+			if not awaitService then
 				return
 			end
 		end
 
-		if
-			data.current.value == 'recruit_wear' or
-			data.current.value == 'officer_wear' or
-			data.current.value == 'sergeant_wear' or
-			data.current.value == 'intendent_wear' or
-			data.current.value == 'lieutenant_wear' or
-			data.current.value == 'chef_wear' or
-			data.current.value == 'boss_wear' or
-			data.current.value == 'bullet_wear' or
-			data.current.value == 'gilet_wear'
-		then
-			setUniform(data.current.value, playerPed)
-		end
-
-		if data.current.value == 'freemode_ped' then
-			local modelHash = ''
+		if data.current.uniform then
+			setUniform(data.current.uniform, playerPed)
+		elseif data.current.value == 'freemode_ped' then
+			local modelHash
 
 			ESX.TriggerServerCallback('esx_skin:getPlayerSkin', function(skin, jobSkin)
 				if skin.sex == 0 then
@@ -201,6 +174,7 @@ function OpenCloakroomMenu()
 				ESX.Streaming.RequestModel(modelHash, function()
 					SetPlayerModel(PlayerId(), modelHash)
 					SetModelAsNoLongerNeeded(modelHash)
+					SetPedDefaultComponentVariation(PlayerPedId())
 
 					TriggerEvent('esx:restoreLoadout')
 				end)
@@ -256,346 +230,6 @@ function OpenArmoryMenu(station)
 	end)
 end
 
-function OpenVehicleSpawnerMenu(type, station, part, partNum)
-	local playerCoords = GetEntityCoords(PlayerPedId())
-	PlayerData = ESX.GetPlayerData()
-	local elements = {
-		{label = _U('garage_storeditem'), action = 'garage'},
-		{label = _U('garage_storeitem'), action = 'store_garage'},
-		{label = _U('garage_buyitem'), action = 'buy_vehicle'}
-	}
-
-	ESX.UI.Menu.Open('default', GetCurrentResourceName(), 'vehicle', {
-		title    = _U('garage_title'),
-		align    = 'top-left',
-		elements = elements
-	}, function(data, menu)
-		if data.current.action == 'buy_vehicle' then
-			local shopElements, shopCoords = {}
-
-			if type == 'car' then
-				shopCoords = Config.PoliceStations[station].Vehicles[partNum].InsideShop
-				local authorizedVehicles = Config.AuthorizedVehicles[PlayerData.job.grade_name]
-
-				if #Config.AuthorizedVehicles.Shared > 0 then
-					for k,vehicle in ipairs(Config.AuthorizedVehicles.Shared) do
-						table.insert(shopElements, {
-							label = ('%s - <span style="color:green;">%s</span>'):format(vehicle.label, _U('shop_item', ESX.Math.GroupDigits(vehicle.price))),
-							name  = vehicle.label,
-							model = vehicle.model,
-							price = vehicle.price,
-							type  = 'car'
-						})
-					end
-				end
-
-				if #authorizedVehicles > 0 then
-					for k,vehicle in ipairs(authorizedVehicles) do
-						table.insert(shopElements, {
-							label = ('%s - <span style="color:green;">%s</span>'):format(vehicle.label, _U('shop_item', ESX.Math.GroupDigits(vehicle.price))),
-							name  = vehicle.label,
-							model = vehicle.model,
-							price = vehicle.price,
-							type  = 'car'
-						})
-					end
-				else
-					if #Config.AuthorizedVehicles.Shared == 0 then
-						return
-					end
-				end
-			elseif type == 'helicopter' then
-				shopCoords = Config.PoliceStations[station].Helicopters[partNum].InsideShop
-				local authorizedHelicopters = Config.AuthorizedHelicopters[PlayerData.job.grade_name]
-
-				if #authorizedHelicopters > 0 then
-					for k,vehicle in ipairs(authorizedHelicopters) do
-						table.insert(shopElements, {
-							label = ('%s - <span style="color:green;">%s</span>'):format(vehicle.label, _U('shop_item', ESX.Math.GroupDigits(vehicle.price))),
-							name  = vehicle.label,
-							model = vehicle.model,
-							price = vehicle.price,
-							livery = vehicle.livery or nil,
-							type  = 'helicopter'
-						})
-					end
-				else
-					ESX.ShowNotification(_U('helicopter_notauthorized'))
-					return
-				end
-			end
-
-			OpenShopMenu(shopElements, playerCoords, shopCoords)
-		elseif data.current.action == 'garage' then
-			local garage = {}
-
-			ESX.TriggerServerCallback('esx_vehicleshop:retrieveJobVehicles', function(jobVehicles)
-				if #jobVehicles > 0 then
-					for k,v in ipairs(jobVehicles) do
-						local props = json.decode(v.vehicle)
-						local vehicleName = GetLabelText(GetDisplayNameFromVehicleModel(props.model))
-						local label = ('%s - <span style="color:darkgoldenrod;">%s</span>: '):format(vehicleName, props.plate)
-
-						if v.stored then
-							label = label .. ('<span style="color:green;">%s</span>'):format(_U('garage_stored'))
-						else
-							label = label .. ('<span style="color:darkred;">%s</span>'):format(_U('garage_notstored'))
-						end
-
-						table.insert(garage, {
-							label = label,
-							stored = v.stored,
-							model = props.model,
-							vehicleProps = props
-						})
-					end
-
-					ESX.UI.Menu.Open('default', GetCurrentResourceName(), 'vehicle_garage', {
-						title    = _U('garage_title'),
-						align    = 'top-left',
-						elements = garage
-					}, function(data2, menu2)
-						if data2.current.stored then
-							local foundSpawn, spawnPoint = GetAvailableVehicleSpawnPoint(station, part, partNum)
-
-							if foundSpawn then
-								menu2.close()
-
-								ESX.Game.SpawnVehicle(data2.current.model, spawnPoint.coords, spawnPoint.heading, function(vehicle)
-									ESX.Game.SetVehicleProperties(vehicle, data2.current.vehicleProps)
-
-									TriggerServerEvent('esx_vehicleshop:setJobVehicleState', data2.current.vehicleProps.plate, false)
-									ESX.ShowNotification(_U('garage_released'))
-								end)
-							end
-						else
-							ESX.ShowNotification(_U('garage_notavailable'))
-						end
-					end, function(data2, menu2)
-						menu2.close()
-					end)
-				else
-					ESX.ShowNotification(_U('garage_empty'))
-				end
-			end, type)
-		elseif data.current.action == 'store_garage' then
-			StoreNearbyVehicle(playerCoords)
-		end
-	end, function(data, menu)
-		menu.close()
-	end)
-end
-
-function StoreNearbyVehicle(playerCoords)
-	local vehicles, vehiclePlates = ESX.Game.GetVehiclesInArea(playerCoords, 30.0), {}
-
-	if #vehicles > 0 then
-		for k,v in ipairs(vehicles) do
-
-			-- Make sure the vehicle we're saving is empty, or else it wont be deleted
-			if GetVehicleNumberOfPassengers(v) == 0 and IsVehicleSeatFree(v, -1) then
-				table.insert(vehiclePlates, {
-					vehicle = v,
-					plate = ESX.Math.Trim(GetVehicleNumberPlateText(v))
-				})
-			end
-		end
-	else
-		ESX.ShowNotification(_U('garage_store_nearby'))
-		return
-	end
-
-	ESX.TriggerServerCallback('esx_policejob:storeNearbyVehicle', function(storeSuccess, foundNum)
-		if storeSuccess then
-			local vehicleId = vehiclePlates[foundNum]
-			local attempts = 0
-			ESX.Game.DeleteVehicle(vehicleId.vehicle)
-			IsBusy = true
-
-			Citizen.CreateThread(function()
-				BeginTextCommandBusyString('STRING')
-				AddTextComponentSubstringPlayerName(_U('garage_storing'))
-				EndTextCommandBusyString(4)
-
-				while IsBusy do
-					Citizen.Wait(100)
-				end
-
-				RemoveLoadingPrompt()
-			end)
-
-			-- Workaround for vehicle not deleting when other players are near it.
-			while DoesEntityExist(vehicleId.vehicle) do
-				Citizen.Wait(500)
-				attempts = attempts + 1
-
-				-- Give up
-				if attempts > 30 then
-					break
-				end
-
-				vehicles = ESX.Game.GetVehiclesInArea(playerCoords, 30.0)
-				if #vehicles > 0 then
-					for k,v in ipairs(vehicles) do
-						if ESX.Math.Trim(GetVehicleNumberPlateText(v)) == vehicleId.plate then
-							ESX.Game.DeleteVehicle(v)
-							break
-						end
-					end
-				end
-			end
-
-			IsBusy = false
-			ESX.ShowNotification(_U('garage_has_stored'))
-		else
-			ESX.ShowNotification(_U('garage_has_notstored'))
-		end
-	end, vehiclePlates)
-end
-
-function GetAvailableVehicleSpawnPoint(station, part, partNum)
-	local spawnPoints = Config.PoliceStations[station][part][partNum].SpawnPoints
-	local found, foundSpawnPoint = false, nil
-
-	for i=1, #spawnPoints, 1 do
-		if ESX.Game.IsSpawnPointClear(spawnPoints[i].coords, spawnPoints[i].radius) then
-			found, foundSpawnPoint = true, spawnPoints[i]
-			break
-		end
-	end
-
-	if found then
-		return true, foundSpawnPoint
-	else
-		ESX.ShowNotification(_U('vehicle_blocked'))
-		return false
-	end
-end
-
-function OpenShopMenu(elements, restoreCoords, shopCoords)
-	local playerPed = PlayerPedId()
-	isInShopMenu = true
-
-	ESX.UI.Menu.Open('default', GetCurrentResourceName(), 'vehicle_shop', {
-		title    = _U('vehicleshop_title'),
-		align    = 'top-left',
-		elements = elements
-	}, function(data, menu)
-		ESX.UI.Menu.Open('default', GetCurrentResourceName(), 'vehicle_shop_confirm', {
-			title    = _U('vehicleshop_confirm', data.current.name, data.current.price),
-			align    = 'top-left',
-			elements = {
-				{label = _U('confirm_no'), value = 'no'},
-				{label = _U('confirm_yes'), value = 'yes'}
-		}}, function(data2, menu2)
-			if data2.current.value == 'yes' then
-				local newPlate = exports['esx_vehicleshop']:GeneratePlate()
-				local vehicle  = GetVehiclePedIsIn(playerPed, false)
-				local props    = ESX.Game.GetVehicleProperties(vehicle)
-				props.plate    = newPlate
-
-				ESX.TriggerServerCallback('esx_policejob:buyJobVehicle', function (bought)
-					if bought then
-						ESX.ShowNotification(_U('vehicleshop_bought', data.current.name, ESX.Math.GroupDigits(data.current.price)))
-
-						isInShopMenu = false
-						ESX.UI.Menu.CloseAll()
-						DeleteSpawnedVehicles()
-						FreezeEntityPosition(playerPed, false)
-						SetEntityVisible(playerPed, true)
-
-						ESX.Game.Teleport(playerPed, restoreCoords)
-					else
-						ESX.ShowNotification(_U('vehicleshop_money'))
-						menu2.close()
-					end
-				end, props, data.current.type)
-			else
-				menu2.close()
-			end
-		end, function(data2, menu2)
-			menu2.close()
-		end)
-	end, function(data, menu)
-		isInShopMenu = false
-		ESX.UI.Menu.CloseAll()
-
-		DeleteSpawnedVehicles()
-		FreezeEntityPosition(playerPed, false)
-		SetEntityVisible(playerPed, true)
-
-		ESX.Game.Teleport(playerPed, restoreCoords)
-	end, function(data, menu)
-		DeleteSpawnedVehicles()
-		WaitForVehicleToLoad(data.current.model)
-
-		ESX.Game.SpawnLocalVehicle(data.current.model, shopCoords, 0.0, function(vehicle)
-			table.insert(spawnedVehicles, vehicle)
-			TaskWarpPedIntoVehicle(playerPed, vehicle, -1)
-			FreezeEntityPosition(vehicle, true)
-			SetModelAsNoLongerNeeded(data.current.model)
-
-			if data.current.livery then
-				SetVehicleModKit(vehicle, 0)
-				SetVehicleLivery(vehicle, data.current.livery)
-			end
-		end)
-	end)
-
-	WaitForVehicleToLoad(elements[1].model)
-	ESX.Game.SpawnLocalVehicle(elements[1].model, shopCoords, 0.0, function(vehicle)
-		table.insert(spawnedVehicles, vehicle)
-		TaskWarpPedIntoVehicle(playerPed, vehicle, -1)
-		FreezeEntityPosition(vehicle, true)
-		SetModelAsNoLongerNeeded(elements[1].model)
-
-		if elements[1].livery then
-			SetVehicleModKit(vehicle, 0)
-			SetVehicleLivery(vehicle, elements[1].livery)
-		end
-	end)
-end
-
-Citizen.CreateThread(function()
-	while true do
-		Citizen.Wait(0)
-
-		if isInShopMenu then
-			DisableControlAction(0, 75, true)  -- Disable exit vehicle
-			DisableControlAction(27, 75, true) -- Disable exit vehicle
-		else
-			Citizen.Wait(500)
-		end
-	end
-end)
-
-function DeleteSpawnedVehicles()
-	while #spawnedVehicles > 0 do
-		local vehicle = spawnedVehicles[1]
-		ESX.Game.DeleteVehicle(vehicle)
-		table.remove(spawnedVehicles, 1)
-	end
-end
-
-function WaitForVehicleToLoad(modelHash)
-	modelHash = (type(modelHash) == 'number' and modelHash or GetHashKey(modelHash))
-
-	if not HasModelLoaded(modelHash) then
-		RequestModel(modelHash)
-
-		BeginTextCommandBusyString('STRING')
-		AddTextComponentSubstringPlayerName(_U('vehicleshop_awaiting_model'))
-		EndTextCommandBusyString(4)
-
-		while not HasModelLoaded(modelHash) do
-			Citizen.Wait(0)
-			DisableAllControlActions(0)
-		end
-
-		RemoveLoadingPrompt()
-	end
-end
-
 function OpenPoliceActionsMenu()
 	ESX.UI.Menu.CloseAll()
 
@@ -610,7 +244,7 @@ function OpenPoliceActionsMenu()
 		if data.current.value == 'citizen_interaction' then
 			local elements = {
 				{label = _U('id_card'), value = 'identity_card'},
-				{label = _U('search'), value = 'body_search'},
+				{label = _U('search'), value = 'search'},
 				{label = _U('handcuff'), value = 'handcuff'},
 				{label = _U('drag'), value = 'drag'},
 				{label = _U('put_in_vehicle'), value = 'put_in_vehicle'},
@@ -620,7 +254,7 @@ function OpenPoliceActionsMenu()
 			}
 
 			if Config.EnableLicenses then
-				table.insert(elements, { label = _U('license_check'), value = 'license' })
+				table.insert(elements, {label = _U('license_check'), value = 'license'})
 			end
 
 			ESX.UI.Menu.Open('default', GetCurrentResourceName(), 'citizen_interaction', {
@@ -634,8 +268,7 @@ function OpenPoliceActionsMenu()
 
 					if action == 'identity_card' then
 						OpenIdentityCardMenu(closestPlayer)
-					elseif action == 'body_search' then
-						TriggerServerEvent('esx_policejob:message', GetPlayerServerId(closestPlayer), _U('being_searched'))
+					elseif action == 'search' then
 						OpenBodySearchMenu(closestPlayer)
 					elseif action == 'handcuff' then
 						TriggerServerEvent('esx_policejob:handcuff', GetPlayerServerId(closestPlayer))
@@ -747,15 +380,10 @@ function OpenPoliceActionsMenu()
 					{label = _U('cash'), model = 'hei_prop_cash_crate_half_full'}
 			}}, function(data2, menu2)
 				local playerPed = PlayerPedId()
-				local coords    = GetEntityCoords(playerPed)
-				local forward   = GetEntityForwardVector(playerPed)
-				local x, y, z   = table.unpack(coords + forward * 1.0)
+				local coords, forward = GetEntityCoords(playerPed), GetEntityForwardVector(playerPed)
+				local objectCoords = (coords + forward * 1.0)
 
-				if data2.current.model == 'prop_roadcone02a' then
-					z = z - 2.0
-				end
-
-				ESX.Game.SpawnObject(data2.current.model, {x = x, y = y, z = z}, function(obj)
+				ESX.Game.SpawnObject(data2.current.model, objectCoords, function(obj)
 					SetEntityHeading(obj, GetEntityHeading(playerPed))
 					PlaceObjectOnGroundProperly(obj)
 				end)
@@ -770,58 +398,15 @@ end
 
 function OpenIdentityCardMenu(player)
 	ESX.TriggerServerCallback('esx_policejob:getOtherPlayerData', function(data)
-		local elements = {}
-		local nameLabel = _U('name', data.name)
-		local jobLabel, sexLabel, dobLabel, heightLabel, idLabel
-
-		if data.job.grade_label and  data.job.grade_label ~= '' then
-			jobLabel = _U('job', data.job.label .. ' - ' .. data.job.grade_label)
-		else
-			jobLabel = _U('job', data.job.label)
-		end
-
-		if Config.EnableESXIdentity then
-			nameLabel = _U('name', data.firstname .. ' ' .. data.lastname)
-
-			if data.sex then
-				if string.lower(data.sex) == 'm' then
-					sexLabel = _U('sex', _U('male'))
-				else
-					sexLabel = _U('sex', _U('female'))
-				end
-			else
-				sexLabel = _U('sex', _U('unknown'))
-			end
-
-			if data.dob then
-				dobLabel = _U('dob', data.dob)
-			else
-				dobLabel = _U('dob', _U('unknown'))
-			end
-
-			if data.height then
-				heightLabel = _U('height', data.height)
-			else
-				heightLabel = _U('height', _U('unknown'))
-			end
-
-			if data.name then
-				idLabel = _U('id', data.name)
-			else
-				idLabel = _U('id', _U('unknown'))
-			end
-		end
-
 		local elements = {
-			{label = nameLabel},
-			{label = jobLabel}
+			{label = _U('name', data.name)},
+			{label = _U('job', ('%s - %s'):format(data.job.label, data.job.grade_label))}
 		}
 
 		if Config.EnableESXIdentity then
-			table.insert(elements, {label = sexLabel})
-			table.insert(elements, {label = dobLabel})
-			table.insert(elements, {label = heightLabel})
-			table.insert(elements, {label = idLabel})
+			table.insert(elements, {label = _U('sex', _U(data.sex))})
+			table.insert(elements, {label = _U('dob', data.dob)})
+			table.insert(elements, {label = _U('height', data.height)})
 		end
 
 		if data.drunk then
@@ -954,8 +539,7 @@ function OpenFineCategoryMenu(player, category)
 end
 
 function LookupVehicle()
-	ESX.UI.Menu.Open('dialog', GetCurrentResourceName(), 'lookup_vehicle',
-	{
+	ESX.UI.Menu.Open('dialog', GetCurrentResourceName(), 'lookup_vehicle', {
 		title = _U('search_database_title'),
 	}, function(data, menu)
 		local length = string.len(data.value)
@@ -977,24 +561,18 @@ function LookupVehicle()
 end
 
 function ShowPlayerLicense(player)
-	local elements, targetName = {}
+	local elements = {}
 
-	ESX.TriggerServerCallback('esx_policejob:getOtherPlayerData', function(data)
-		if data.licenses then
-			for i=1, #data.licenses, 1 do
-				if data.licenses[i].label and data.licenses[i].type then
+	ESX.TriggerServerCallback('esx_policejob:getOtherPlayerData', function(playerData)
+		if playerData.licenses then
+			for i=1, #playerData.licenses, 1 do
+				if playerData.licenses[i].label and playerData.licenses[i].type then
 					table.insert(elements, {
-						label = data.licenses[i].label,
-						type = data.licenses[i].type
+						label = playerData.licenses[i].label,
+						type = playerData.licenses[i].type
 					})
 				end
 			end
-		end
-
-		if Config.EnableESXIdentity then
-			targetName = data.firstname .. ' ' .. data.lastname
-		else
-			targetName = data.name
 		end
 
 		ESX.UI.Menu.Open('default', GetCurrentResourceName(), 'manage_license', {
@@ -1002,7 +580,7 @@ function ShowPlayerLicense(player)
 			align    = 'top-left',
 			elements = elements,
 		}, function(data, menu)
-			ESX.ShowNotification(_U('licence_you_revoked', data.current.label, targetName))
+			ESX.ShowNotification(_U('licence_you_revoked', data.current.label, playerData.name))
 			TriggerServerEvent('esx_policejob:message', GetPlayerServerId(player), _U('license_revoked', data.current.label))
 
 			TriggerServerEvent('esx_license:removeLicense', GetPlayerServerId(player), data.current.type)
@@ -1123,7 +701,7 @@ function OpenBuyWeaponsMenu()
 	local playerPed = PlayerPedId()
 	PlayerData = ESX.GetPlayerData()
 
-	for k,v in ipairs(Config.AuthorizedWeapons[PlayerData.job.grade_name]) do
+	for k,v in ipairs(Config.AuthorizedWeapons[ESX.PlayerData.job.grade_name]) do
 		local weaponNum, weapon = ESX.GetWeapon(v.weapon)
 		local components, label = {}
 		local hasWeapon = HasPedGotWeapon(playerPed, GetHashKey(v.weapon), false)
@@ -1326,7 +904,7 @@ end
 
 RegisterNetEvent('esx:setJob')
 AddEventHandler('esx:setJob', function(job)
-	PlayerData.job = job
+	ESX.PlayerData.job = job
 
 	Citizen.Wait(5000)
 	TriggerServerEvent('esx_policejob:forceBlip')
@@ -1345,9 +923,9 @@ end)
 
 -- don't show dispatches if the player isn't in service
 AddEventHandler('esx_phone:cancelMessage', function(dispatchNumber)
-	if PlayerData.job and PlayerData.job.name == 'police' and PlayerData.job.name == dispatchNumber then
+	if ESX.PlayerData.job and ESX.PlayerData.job.name == 'police' and ESX.PlayerData.job.name == dispatchNumber then
 		-- if esx_service is enabled
-		if Config.MaxInService ~= -1 and not playerInService then
+		if Config.EnableESXService and not playerInService then
 			CancelEvent()
 		end
 	end
@@ -1388,7 +966,7 @@ end)
 AddEventHandler('esx_policejob:hasEnteredEntityZone', function(entity)
 	local playerPed = PlayerPedId()
 
-	if PlayerData.job and PlayerData.job.name == 'police' and IsPedOnFoot(playerPed) then
+	if ESX.PlayerData.job and ESX.PlayerData.job.name == 'police' and IsPedOnFoot(playerPed) then
 		CurrentAction     = 'remove_entity'
 		CurrentActionMsg  = _U('remove_prop')
 		CurrentActionData = {entity = entity}
@@ -1419,43 +997,40 @@ AddEventHandler('esx_policejob:handcuff', function()
 	isHandcuffed = not isHandcuffed
 	local playerPed = PlayerPedId()
 
-	Citizen.CreateThread(function()
-		if isHandcuffed then
+	if isHandcuffed then
+		RequestAnimDict('mp_arresting')
+		while not HasAnimDictLoaded('mp_arresting') do
+			Citizen.Wait(100)
+		end
 
-			RequestAnimDict('mp_arresting')
-			while not HasAnimDictLoaded('mp_arresting') do
-				Citizen.Wait(100)
-			end
+		TaskPlayAnim(playerPed, 'mp_arresting', 'idle', 8.0, -8, -1, 49, 0, 0, 0, 0)
 
-			TaskPlayAnim(playerPed, 'mp_arresting', 'idle', 8.0, -8, -1, 49, 0, 0, 0, 0)
+		SetEnableHandcuffs(playerPed, true)
+		DisablePlayerFiring(playerPed, true)
+		SetCurrentPedWeapon(playerPed, GetHashKey('WEAPON_UNARMED'), true) -- unarm player
+		SetPedCanPlayGestureAnims(playerPed, false)
+		FreezeEntityPosition(playerPed, true)
+		DisplayRadar(false)
 
-			SetEnableHandcuffs(playerPed, true)
-			DisablePlayerFiring(playerPed, true)
-			SetCurrentPedWeapon(playerPed, GetHashKey('WEAPON_UNARMED'), true) -- unarm player
-			SetPedCanPlayGestureAnims(playerPed, false)
-			FreezeEntityPosition(playerPed, true)
-			DisplayRadar(false)
-
-			if Config.EnableHandcuffTimer then
-				if handcuffTimer.active then
-					ESX.ClearTimeout(handcuffTimer.task)
-				end
-
-				StartHandcuffTimer()
-			end
-		else
-			if Config.EnableHandcuffTimer and handcuffTimer.active then
+		if Config.EnableHandcuffTimer then
+			if handcuffTimer.active then
 				ESX.ClearTimeout(handcuffTimer.task)
 			end
 
-			ClearPedSecondaryTask(playerPed)
-			SetEnableHandcuffs(playerPed, false)
-			DisablePlayerFiring(playerPed, false)
-			SetPedCanPlayGestureAnims(playerPed, true)
-			FreezeEntityPosition(playerPed, false)
-			DisplayRadar(true)
+			StartHandcuffTimer()
 		end
-	end)
+	else
+		if Config.EnableHandcuffTimer and handcuffTimer.active then
+			ESX.ClearTimeout(handcuffTimer.task)
+		end
+
+		ClearPedSecondaryTask(playerPed)
+		SetEnableHandcuffs(playerPed, false)
+		DisablePlayerFiring(playerPed, false)
+		SetPedCanPlayGestureAnims(playerPed, true)
+		FreezeEntityPosition(playerPed, false)
+		DisplayRadar(true)
+	end
 end)
 
 RegisterNetEvent('esx_policejob:unrestrain')
@@ -1480,43 +1055,37 @@ end)
 
 RegisterNetEvent('esx_policejob:drag')
 AddEventHandler('esx_policejob:drag', function(copId)
-	if not isHandcuffed then
-		return
+	if isHandcuffed then
+		dragStatus.isDragged = not dragStatus.isDragged
+		dragStatus.CopId = copId
 	end
-
-	dragStatus.isDragged = not dragStatus.isDragged
-	dragStatus.CopId = copId
 end)
 
 Citizen.CreateThread(function()
-	local playerPed
-	local targetPed
+	local wasDragged
 
 	while true do
-		Citizen.Wait(1)
+		Citizen.Wait(0)
+		local playerPed = PlayerPedId()
 
-		if isHandcuffed then
-			playerPed = PlayerPedId()
+		if isHandcuffed and dragStatus.isDragged then
+			local targetPed = GetPlayerPed(GetPlayerFromServerId(dragStatus.CopId))
 
-			if dragStatus.isDragged then
-				targetPed = GetPlayerPed(GetPlayerFromServerId(dragStatus.CopId))
-
-				-- undrag if target is in an vehicle
-				if not IsPedSittingInAnyVehicle(targetPed) then
+			if DoesEntityExist(targetPed) and IsPedOnFoot(targetPed) and not IsPedDeadOrDying(targetPed, true) then
+				if not wasDragged then
 					AttachEntityToEntity(playerPed, targetPed, 11816, 0.54, 0.54, 0.0, 0.0, 0.0, 0.0, false, false, false, false, 2, true)
+					wasDragged = true
 				else
-					dragStatus.isDragged = false
-					DetachEntity(playerPed, true, false)
+					Citizen.Wait(1000)
 				end
-
-				if IsPedDeadOrDying(targetPed, true) then
-					dragStatus.isDragged = false
-					DetachEntity(playerPed, true, false)
-				end
-
 			else
+				wasDragged = false
+				dragStatus.isDragged = false
 				DetachEntity(playerPed, true, false)
 			end
+		elseif wasDragged then
+			wasDragged = false
+			DetachEntity(playerPed, true, false)
 		else
 			Citizen.Wait(500)
 		end
@@ -1525,29 +1094,27 @@ end)
 
 RegisterNetEvent('esx_policejob:putInVehicle')
 AddEventHandler('esx_policejob:putInVehicle', function()
-	local playerPed = PlayerPedId()
-	local coords = GetEntityCoords(playerPed)
+	if isHandcuffed then
+		local playerPed = PlayerPedId()
+		local coords = GetEntityCoords(playerPed)
 
-	if not isHandcuffed then
-		return
-	end
+		if IsAnyVehicleNearPoint(coords, 5.0) then
+			local vehicle = GetClosestVehicle(coords, 5.0, 0, 71)
 
-	if IsAnyVehicleNearPoint(coords, 5.0) then
-		local vehicle = GetClosestVehicle(coords, 5.0, 0, 71)
+			if DoesEntityExist(vehicle) then
+				local maxSeats, freeSeat = GetVehicleMaxNumberOfPassengers(vehicle)
 
-		if DoesEntityExist(vehicle) then
-			local maxSeats, freeSeat = GetVehicleMaxNumberOfPassengers(vehicle)
-
-			for i=maxSeats - 1, 0, -1 do
-				if IsVehicleSeatFree(vehicle, i) then
-					freeSeat = i
-					break
+				for i=maxSeats - 1, 0, -1 do
+					if IsVehicleSeatFree(vehicle, i) then
+						freeSeat = i
+						break
+					end
 				end
-			end
 
-			if freeSeat then
-				TaskWarpPedIntoVehicle(playerPed, vehicle, freeSeat)
-				dragStatus.isDragged = false
+				if freeSeat then
+					TaskWarpPedIntoVehicle(playerPed, vehicle, freeSeat)
+					dragStatus.isDragged = false
+				end
 			end
 		end
 	end
@@ -1557,12 +1124,10 @@ RegisterNetEvent('esx_policejob:OutVehicle')
 AddEventHandler('esx_policejob:OutVehicle', function()
 	local playerPed = PlayerPedId()
 
-	if not IsPedSittingInAnyVehicle(playerPed) then
-		return
+	if IsPedSittingInAnyVehicle(playerPed) then
+		local vehicle = GetVehiclePedIsIn(playerPed, false)
+		TaskLeaveVehicle(playerPed, vehicle, 16)
 	end
-
-	local vehicle = GetVehiclePedIsIn(playerPed, false)
-	TaskLeaveVehicle(playerPed, vehicle, 16)
 end)
 
 -- Handcuff
@@ -1628,7 +1193,6 @@ end)
 
 -- Create blips
 Citizen.CreateThread(function()
-
 	for k,v in pairs(Config.PoliceStations) do
 		local blip = AddBlipForCoord(v.Blip.Coords)
 
@@ -1639,89 +1203,86 @@ Citizen.CreateThread(function()
 		SetBlipAsShortRange(blip, true)
 
 		BeginTextCommandSetBlipName('STRING')
-		AddTextComponentString(_U('map_blip'))
+		AddTextComponentSubstringPlayerName(_U('map_blip'))
 		EndTextCommandSetBlipName(blip)
 	end
-
 end)
 
--- Display markers
+-- Draw markers and more
 Citizen.CreateThread(function()
 	while true do
 		Citizen.Wait(0)
 
-		if PlayerData.job and PlayerData.job.name == 'police' then
-
+		if ESX.PlayerData.job and ESX.PlayerData.job.name == 'police' then
 			local playerPed = PlayerPedId()
-			local coords    = GetEntityCoords(playerPed)
+			local playerCoords = GetEntityCoords(playerPed)
 			local isInMarker, hasExited, letSleep = false, false, true
 			local currentStation, currentPart, currentPartNum
 
 			for k,v in pairs(Config.PoliceStations) do
-
 				for i=1, #v.Cloakrooms, 1 do
-					local distance = GetDistanceBetweenCoords(coords, v.Cloakrooms[i], true)
+					local distance = #(playerCoords - v.Cloakrooms[i])
 
 					if distance < Config.DrawDistance then
 						DrawMarker(20, v.Cloakrooms[i], 0.0, 0.0, 0.0, 0, 0.0, 0.0, 1.0, 1.0, 1.0, Config.MarkerColor.r, Config.MarkerColor.g, Config.MarkerColor.b, 100, false, true, 2, true, false, false, false)
 						letSleep = false
-					end
 
-					if distance < Config.MarkerSize.x then
-						isInMarker, currentStation, currentPart, currentPartNum = true, k, 'Cloakroom', i
+						if distance < Config.MarkerSize.x then
+							isInMarker, currentStation, currentPart, currentPartNum = true, k, 'Cloakroom', i
+						end
 					end
 				end
 
 				for i=1, #v.Armories, 1 do
-					local distance = GetDistanceBetweenCoords(coords, v.Armories[i], true)
+					local distance = #(playerCoords - v.Armories[i])
 
 					if distance < Config.DrawDistance then
 						DrawMarker(21, v.Armories[i], 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 0.5, 0.5, Config.MarkerColor.r, Config.MarkerColor.g, Config.MarkerColor.b, 100, false, true, 2, true, false, false, false)
 						letSleep = false
-					end
 
-					if distance < Config.MarkerSize.x then
-						isInMarker, currentStation, currentPart, currentPartNum = true, k, 'Armory', i
+						if distance < Config.MarkerSize.x then
+							isInMarker, currentStation, currentPart, currentPartNum = true, k, 'Armory', i
+						end
 					end
 				end
 
 				for i=1, #v.Vehicles, 1 do
-					local distance = GetDistanceBetweenCoords(coords, v.Vehicles[i].Spawner, true)
+					local distance = #(playerCoords - v.Vehicles[i].Spawner)
 
 					if distance < Config.DrawDistance then
 						DrawMarker(36, v.Vehicles[i].Spawner, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, Config.MarkerColor.r, Config.MarkerColor.g, Config.MarkerColor.b, 100, false, true, 2, true, false, false, false)
 						letSleep = false
-					end
 
-					if distance < Config.MarkerSize.x then
-						isInMarker, currentStation, currentPart, currentPartNum = true, k, 'Vehicles', i
+						if distance < Config.MarkerSize.x then
+							isInMarker, currentStation, currentPart, currentPartNum = true, k, 'Vehicles', i
+						end
 					end
 				end
 
 				for i=1, #v.Helicopters, 1 do
-					local distance =  GetDistanceBetweenCoords(coords, v.Helicopters[i].Spawner, true)
+					local distance =  #(playerCoords - v.Helicopters[i].Spawner)
 
 					if distance < Config.DrawDistance then
 						DrawMarker(34, v.Helicopters[i].Spawner, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, Config.MarkerColor.r, Config.MarkerColor.g, Config.MarkerColor.b, 100, false, true, 2, true, false, false, false)
 						letSleep = false
-					end
 
-					if distance < Config.MarkerSize.x then
-						isInMarker, currentStation, currentPart, currentPartNum = true, k, 'Helicopters', i
+						if distance < Config.MarkerSize.x then
+							isInMarker, currentStation, currentPart, currentPartNum = true, k, 'Helicopters', i
+						end
 					end
 				end
 
-				if Config.EnablePlayerManagement and PlayerData.job.grade_name == 'boss' then
+				if Config.EnablePlayerManagement and ESX.PlayerData.job.grade_name == 'boss' then
 					for i=1, #v.BossActions, 1 do
-						local distance = GetDistanceBetweenCoords(coords, v.BossActions[i], true)
+						local distance = #(playerCoords - v.BossActions[i])
 
 						if distance < Config.DrawDistance then
 							DrawMarker(22, v.BossActions[i], 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, Config.MarkerColor.r, Config.MarkerColor.g, Config.MarkerColor.b, 100, false, true, 2, true, false, false, false)
 							letSleep = false
-						end
 
-						if distance < Config.MarkerSize.x then
-							isInMarker, currentStation, currentPart, currentPartNum = true, k, 'BossActions', i
+							if distance < Config.MarkerSize.x then
+								isInMarker, currentStation, currentPart, currentPartNum = true, k, 'BossActions', i
+							end
 						end
 					end
 				end
@@ -1752,7 +1313,6 @@ Citizen.CreateThread(function()
 			if letSleep then
 				Citizen.Wait(500)
 			end
-
 		else
 			Citizen.Wait(500)
 		end
@@ -1773,17 +1333,17 @@ Citizen.CreateThread(function()
 		Citizen.Wait(500)
 
 		local playerPed = PlayerPedId()
-		local coords    = GetEntityCoords(playerPed)
+		local playerCoords = GetEntityCoords(playerPed)
 
 		local closestDistance = -1
 		local closestEntity   = nil
 
 		for i=1, #trackedEntities, 1 do
-			local object = GetClosestObjectOfType(coords, 3.0, GetHashKey(trackedEntities[i]), false, false, false)
+			local object = GetClosestObjectOfType(playerCoords, 3.0, GetHashKey(trackedEntities[i]), false, false, false)
 
 			if DoesEntityExist(object) then
 				local objCoords = GetEntityCoords(object)
-				local distance  = GetDistanceBetweenCoords(coords, objCoords, true)
+				local distance = #(playerCoords - objCoords)
 
 				if closestDistance == -1 or closestDistance > distance then
 					closestDistance = distance
@@ -1814,12 +1374,12 @@ Citizen.CreateThread(function()
 		if CurrentAction then
 			ESX.ShowHelpNotification(CurrentActionMsg)
 
-			if IsControlJustReleased(0, 38) and PlayerData.job and PlayerData.job.name == 'police' then
+			if IsControlJustReleased(0, 38) and ESX.PlayerData.job and ESX.PlayerData.job.name == 'police' then
 
 				if CurrentAction == 'menu_cloakroom' then
 					OpenCloakroomMenu()
 				elseif CurrentAction == 'menu_armory' then
-					if Config.MaxInService == -1 then
+					if not Config.EnableESXService then
 						OpenArmoryMenu(CurrentActionData.station)
 					elseif playerInService then
 						OpenArmoryMenu(CurrentActionData.station)
@@ -1827,7 +1387,7 @@ Citizen.CreateThread(function()
 						ESX.ShowNotification(_U('service_not'))
 					end
 				elseif CurrentAction == 'menu_vehicle_spawner' then
-					if Config.MaxInService == -1 then
+					if not Config.EnableESXService then
 						OpenVehicleSpawnerMenu('car', CurrentActionData.station, CurrentActionData.part, CurrentActionData.partNum)
 					elseif playerInService then
 						OpenVehicleSpawnerMenu('car', CurrentActionData.station, CurrentActionData.part, CurrentActionData.partNum)
@@ -1835,7 +1395,7 @@ Citizen.CreateThread(function()
 						ESX.ShowNotification(_U('service_not'))
 					end
 				elseif CurrentAction == 'Helicopters' then
-					if Config.MaxInService == -1 then
+					if not Config.EnableESXService then
 						OpenVehicleSpawnerMenu('helicopter', CurrentActionData.station, CurrentActionData.part, CurrentActionData.partNum)
 					elseif playerInService then
 						OpenVehicleSpawnerMenu('helicopter', CurrentActionData.station, CurrentActionData.part, CurrentActionData.partNum)
@@ -1861,8 +1421,8 @@ Citizen.CreateThread(function()
 			end
 		end -- CurrentAction end
 
-		if IsControlJustReleased(0, 167) and not isDead and PlayerData.job and PlayerData.job.name == 'police' and not ESX.UI.Menu.IsOpen('default', GetCurrentResourceName(), 'police_actions') then
-			if Config.MaxInService == -1 then
+		if IsControlJustReleased(0, 167) and not isDead and ESX.PlayerData.job and ESX.PlayerData.job.name == 'police' and not ESX.UI.Menu.IsOpen('default', GetCurrentResourceName(), 'police_actions') then
+			if not Config.EnableESXService then
 				OpenPoliceActionsMenu()
 			elseif playerInService then
 				OpenPoliceActionsMenu()
@@ -1911,7 +1471,7 @@ AddEventHandler('esx_policejob:updateBlip', function()
 	blipsCops = {}
 
 	-- Enable blip?
-	if Config.MaxInService ~= -1 and not playerInService then
+	if Config.EnableESXService and not playerInService then
 		return
 	end
 
@@ -1920,7 +1480,7 @@ AddEventHandler('esx_policejob:updateBlip', function()
 	end
 
 	-- Is the player a cop? In that case show all the blips for other cops
-	if PlayerData.job and PlayerData.job.name == 'police' then
+	if ESX.PlayerData.job and ESX.PlayerData.job.name == 'police' then
 		ESX.TriggerServerCallback('esx_society:getOnlinePlayers', function(players)
 			for i=1, #players, 1 do
 				if players[i].job.name == 'police' then
@@ -1954,7 +1514,7 @@ AddEventHandler('onResourceStop', function(resource)
 		TriggerEvent('esx_policejob:unrestrain')
 		TriggerEvent('esx_phone:removeSpecialContact', 'police')
 
-		if Config.MaxInService ~= -1 then
+		if Config.EnableESXService then
 			TriggerServerEvent('esx_service:disableService', 'police')
 		end
 
