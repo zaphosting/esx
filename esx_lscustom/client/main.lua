@@ -12,12 +12,17 @@ Citizen.CreateThread(function()
 	end
 end)
 
-RegisterNetEvent('esx:playerLoaded')
-AddEventHandler('esx:playerLoaded', function(xPlayer)
-	PlayerData = xPlayer
+Citizen.CreateThread(function()
+	RegisterNetEvent('esx:playerLoaded')
+	AddEventHandler('esx:playerLoaded', function (xPlayer)
+		while ESX == nil do
+			Citizen.Wait(0)
+		end
+		PlayerData = xPlayer
 
-	ESX.TriggerServerCallback('esx_lscustom:getVehiclesPrices', function(vehicles)
-		Vehicles = vehicles
+		ESX.TriggerServerCallback('esx_lscustom:getVehiclesPrices', function(vehicles)
+			Vehicles = vehicles
+		end)
 	end)
 end)
 

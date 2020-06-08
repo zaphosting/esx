@@ -42,23 +42,29 @@ Citizen.CreateThread(function()
 	end
 end)
 
-RegisterNetEvent('esx:playerLoaded')
-AddEventHandler('esx:playerLoaded', function(xPlayer)
-	ESX.PlayerData = xPlayer
 
-	if Config.EnablePlayerManagement then
-		if ESX.PlayerData.job.name == 'cardealer' then
-			Config.Zones.ShopEntering.Type = 1
-
-			if ESX.PlayerData.job.grade_name == 'boss' then
-				Config.Zones.BossActions.Type = 1
-			end
-
-		else
-			Config.Zones.ShopEntering.Type = -1
-			Config.Zones.BossActions.Type  = -1
+Citizen.CreateThread(function()
+	RegisterNetEvent('esx:playerLoaded')
+	AddEventHandler('esx:playerLoaded', function(xPlayer)
+		while ESX == nil do
+			Citizen.Wait(0)
 		end
-	end
+		ESX.PlayerData = xPlayer
+
+		if Config.EnablePlayerManagement then
+			if ESX.PlayerData.job.name == 'cardealer' then
+				Config.Zones.ShopEntering.Type = 1
+
+				if ESX.PlayerData.job.grade_name == 'boss' then
+					Config.Zones.BossActions.Type = 1
+				end
+
+			else
+				Config.Zones.ShopEntering.Type = -1
+				Config.Zones.BossActions.Type  = -1
+			end
+		end
+	end)
 end)
 
 RegisterNetEvent('esx_vehicleshop:sendCategories')

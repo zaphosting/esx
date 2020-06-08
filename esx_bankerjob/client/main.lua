@@ -14,9 +14,14 @@ Citizen.CreateThread(function ()
 	ESX.PlayerData = ESX.GetPlayerData()
 end)
 
-RegisterNetEvent('esx:playerLoaded')
-AddEventHandler('esx:playerLoaded', function (xPlayer)
-	ESX.PlayerData = xPlayer
+Citizen.CreateThread(function()
+	RegisterNetEvent('esx:playerLoaded')
+	AddEventHandler('esx:playerLoaded', function (xPlayer)
+		while ESX == nil do
+			Citizen.Wait(0)
+		end
+		ESX.PlayerData = xPlayer
+	end)
 end)
 
 RegisterNetEvent('esx:setJob')
@@ -176,7 +181,7 @@ Citizen.CreateThread(function()
 	while true do
 		Citizen.Wait(0)
 
-		if ESX.PlayerData.job and ESX.PlayerData.job.name == 'banker' then
+		if ESX and ESX.PlayerData.job and ESX.PlayerData.job.name == 'banker' then
 			local playerCoords = GetEntityCoords(PlayerPedId())
 			local isInMarker, letSleep, currentZone = false, true
 
@@ -217,7 +222,7 @@ Citizen.CreateThread(function()
 	while true do
 		Citizen.Wait(0)
 
-		if CurrentAction then
+		if CurrentAction and ESX then
 			ESX.ShowHelpNotification(CurrentActionMsg)
 
 			if IsControlJustReleased(0, 38) and ESX.PlayerData.job and ESX.PlayerData.job.name == 'banker' then

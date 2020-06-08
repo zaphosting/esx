@@ -694,9 +694,14 @@ AddEventHandler('esx_mechanicjob:onFixkit', function()
 	end
 end)
 
-RegisterNetEvent('esx:playerLoaded')
-AddEventHandler('esx:playerLoaded', function(xPlayer)
-	ESX.PlayerData = xPlayer
+Citizen.CreateThread(function()
+	RegisterNetEvent('esx:playerLoaded')
+	AddEventHandler('esx:playerLoaded', function (xPlayer)
+		while ESX == nil do
+			Citizen.Wait(0)
+		end
+		ESX.PlayerData = xPlayer
+	end)
 end)
 
 RegisterNetEvent('esx:setJob')

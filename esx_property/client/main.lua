@@ -10,17 +10,22 @@ Citizen.CreateThread(function()
 	end
 end)
 
-RegisterNetEvent('esx:playerLoaded')
-AddEventHandler('esx:playerLoaded', function(xPlayer)
-	ESX.TriggerServerCallback('esx_property:getProperties', function(properties)
-		Config.Properties = properties
-		CreateBlips()
-	end)
-
-	ESX.TriggerServerCallback('esx_property:getOwnedProperties', function(ownedProperties)
-		for i=1, #ownedProperties, 1 do
-			SetPropertyOwned(ownedProperties[i], true)
+Citizen.CreateThread(function()
+	RegisterNetEvent('esx:playerLoaded')
+	AddEventHandler('esx:playerLoaded', function(xPlayer)
+		while ESX == nil do
+			Citizen.Wait(0)
 		end
+		ESX.TriggerServerCallback('esx_property:getProperties', function(properties)
+			Config.Properties = properties
+			CreateBlips()
+		end)
+
+		ESX.TriggerServerCallback('esx_property:getOwnedProperties', function(ownedProperties)
+			for i=1, #ownedProperties, 1 do
+				SetPropertyOwned(ownedProperties[i], true)
+			end
+		end)
 	end)
 end)
 
