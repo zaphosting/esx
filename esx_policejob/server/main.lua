@@ -27,15 +27,10 @@ AddEventHandler('esx_policejob:confiscatePlayerItem', function(target, itemType,
 		-- does the target player have enough in their inventory?
 		if targetItem.count > 0 and targetItem.count <= amount then
 
-			-- can the player carry the said amount of x item?
-			if sourceXPlayer.canCarryItem(itemName, sourceItem.count) then
-				targetXPlayer.removeInventoryItem(itemName, amount)
-				sourceXPlayer.addInventoryItem   (itemName, amount)
-				sourceXPlayer.showNotification(_U('you_confiscated', amount, sourceItem.label, targetXPlayer.name))
-				targetXPlayer.showNotification(_U('got_confiscated', amount, sourceItem.label, sourceXPlayer.name))
-			else
-				sourceXPlayer.showNotification(_U('quantity_invalid'))
-			end
+			targetXPlayer.removeInventoryItem(itemName, amount)
+			sourceXPlayer.addInventoryItem   (itemName, amount)
+			sourceXPlayer.showNotification(_U('you_confiscated', amount, sourceItem.label, targetXPlayer.name))
+			targetXPlayer.showNotification(_U('got_confiscated', amount, sourceItem.label, sourceXPlayer.name))
 		else
 			sourceXPlayer.showNotification(_U('quantity_invalid'))
 		end
@@ -112,14 +107,9 @@ AddEventHandler('esx_policejob:getStockItem', function(itemName, count)
 		-- is there enough in the society?
 		if count > 0 and inventoryItem.count >= count then
 
-			-- can the player carry the said amount of x item?
-			if xPlayer.canCarryItem(itemName, count) then
-				inventory.removeItem(itemName, count)
-				xPlayer.addInventoryItem(itemName, count)
-				xPlayer.showNotification(_U('have_withdrawn', count, inventoryItem.label))
-			else
-				xPlayer.showNotification(_U('quantity_invalid'))
-			end
+			inventory.removeItem(itemName, count)
+			xPlayer.addInventoryItem(itemName, count)
+			xPlayer.showNotification(_U('have_withdrawn', count, inventoryItem.label))
 		else
 			xPlayer.showNotification(_U('quantity_invalid'))
 		end
