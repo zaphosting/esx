@@ -158,15 +158,9 @@ AddEventHandler('esx_vehicleshop:getStockItem', function(itemName, count)
 
 		-- is there enough in the society?
 		if count > 0 and item.count >= count then
-
-			-- can the player carry the said amount of x item?
-			if xPlayer.canCarryItem(itemName, count) then
-				inventory.removeItem(itemName, count)
-				xPlayer.addInventoryItem(itemName, count)
-				xPlayer.showNotification(_U('have_withdrawn', count, item.label))
-			else
-				xPlayer.showNotification(_U('player_cannot_hold'))
-			end
+			inventory.removeItem(itemName, count)
+			xPlayer.addInventoryItem(itemName, count)
+			xPlayer.showNotification(_U('have_withdrawn', count, item.label))
 		else
 			xPlayer.showNotification(_U('not_enough_in_society'))
 		end
