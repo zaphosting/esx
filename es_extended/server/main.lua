@@ -52,6 +52,19 @@ AddEventHandler('es:playerLoaded', function(source, _player)
 			}, function(inventory)
 				local tasks2 = {}
 
+				local checkedItems = {}
+
+				for i, item in pairs(inventory) do
+					if checkedItems[item.item] == true then
+						MySQL.Async.execute("DELETE FROM user_inventory WHERE id = @id and identifier = @identifier ", { ['@id'] = item.id, ['@identifier'] = player.getIdentifier() })
+						-- print("deleted dupe "..item.id.." with item type:"..item.item.." from user: "..item.identifier)
+						table.remove(inventory,i)
+					else
+						checkedItems[item.item] = true
+					end
+				end
+				checkedItems = nil
+
 				for i=1, #inventory do
 					local item = ESX.Items[inventory[i].item]
 
@@ -81,6 +94,7 @@ AddEventHandler('es:playerLoaded', function(source, _player)
 					end
 
 					if not found then
+						-- print(k.." not found, creating in database")
 						table.insert(userData.inventory, {
 							name = k,
 							count = 0,
